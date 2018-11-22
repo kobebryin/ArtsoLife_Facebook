@@ -1,12 +1,21 @@
 library(shiny)
+library(DT)
+library(tidyr)
+library(dplyr)
+library(shinyjs)
 library(RSelenium) # R Bindings for Selenium WebDriver
+
+#load user's data
+load("userlikesFulllist.Rdata")
+alluser=userlikesFulllist[,1:2]
+
 remDr <- remoteDriver(browserName = "chrome") #initial public variable for Selenium chrome driver
 
 # Define UI for dataset viewer app ----
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("ArtsoLife Facebook Messanger Bot"),
+  titlePanel("ArtsoLife Facebook Messenger Bot"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -26,7 +35,9 @@ ui <- fluidPage(
                 label = "Message Content(換行可拆分訊息):",
                 value = "您好，這裡是亞梭家私，此為聊天測試訊息。"),
       
-      actionButton("sendtext", "Send Text")
+      actionButton("sendtext", "Send Text"),
+      actionButton("sendMulti_text", "Send Multi-Text"),
+      actionButton("sendAlltext", "Send All")
     ),
     
     # Main panel for displaying outputs ----
@@ -36,27 +47,45 @@ ui <- fluidPage(
       h3(textOutput("caption")),
       textOutput("status"),
       textOutput("status2"),
-      textOutput("result")
-      
+      textOutput("result"),
+      DT::dataTableOutput("mytable"),
+      textOutput("selected")
     )
   )
 )
 
 # Define server logic to summarize and view selected dataset ----
-server <- function(input, output) {
-  
+
+server <- function(input, output, session) {
+  ##title bar
   output$caption <- renderText({
     "Status and Result Log"
   })
   
+  ##insert user's data into datatable
+  output$mytable = DT::renderDataTable({
+    alluser
+  })
+  
+  ##function of which user's id has selected by user
+  selectedRow <- eventReactive(input$mytable_rows_selected,{
+    data <- alluser[input$mytable_rows_selected, ][,1]
+    updateTextInput(session, "facebook_id", value = data) #change textinput's value
+  })
+  output$selected <- renderText({ 
+    selectedRow()
+    hide("selected") #hide textoutput
+  })
+  
+  ##open browser button onClick event
   observeEvent(input$openbrowser, {
     remDr$open() #open chrome browser
     url2="https://www.facebook.com/messages/t/kobebryin"   #facebook massenger url(last url is fb user's id)
     remDr$navigate(url2)
     email_textarea <- remDr$findElement('xpath', '//*[@id="email"]')   #navigate to email textarea
-    email_textarea$sendKeysToElement(list("artsolife@gmail.com"))
+    email_textarea$sendKeysToElement(list("kobebryin@yahoo.com.tw"))
     password_textarea <- remDr$findElement('xpath', '//*[@id="pass"]')   #navigate to password textarea
-    password_textarea$sendKeysToElement(list("0927879090"))
+    password_textarea$sendKeysToElement(list("8303195205"))
     login_btn <- remDr$findElement('xpath', '//*[@id="loginbutton"]')   #navigate to login button
     login_btn$clickElement()
     
@@ -71,6 +100,7 @@ server <- function(input, output) {
     })
   })
   
+  ##send text button onClick event
   observeEvent(input$sendtext, {
     url2=paste("https://www.facebook.com/messages/t/", input$facebook_id, sep="")   #facebook massenger url(last url is fb user's id)
     remDr$navigate(url2)
@@ -89,14 +119,70 @@ server <- function(input, output) {
     output$status2 <- renderText({ 
       remote_status2
     })
-    remote_result <- "Send massege success"
+    remote_result <- "Send message success"
     output$result <- renderText({ 
       remote_result
     })
   })
   
+  ##send multi-text button onClick event
+  observeEvent(input$sendMulti_text, {
+    list.usersId <- as.list(strsplit(input$facebook_id, ",")[[1]])
+    for(i in list.usersId){
+      url2=paste("https://www.facebook.com/messages/t/", i, sep="")   #facebook massenger url(last url is fb user's id)
+      remDr$navigate(url2)
+      ## write massege and send it
+      message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
+      message_textarea$clickElement()
+      message_textarea$sendKeysToActiveElement(list(input$message_content))   #type text 
+      message_textarea$sendKeysToActiveElement(list(key="enter"))  #send text message
+      
+      #show the status and result
+      remote_status <- paste("Send to: ", input$facebook_id, sep="")
+      output$status <- renderText({ 
+        remote_status
+      })
+      remote_status2 <- paste("Message Content: ", input$message_content, sep="")
+      output$status2 <- renderText({ 
+        remote_status2
+      })
+      remote_result <- "Send message success"
+      output$result <- renderText({ 
+        remote_result
+      })
+      Sys.sleep(3)
+    }
+  })
+  
+  ##send all-text button onClick event
+  observeEvent(input$sendAlltext, {
+    list.AllusersId <- as.list(alluser[1])
+    for(i in c(1:length(list.AllusersId$id))){
+      url2=paste("https://www.facebook.com/messages/t/", list.AllusersId$id[i], sep="")   #facebook massenger url(last url is fb user's id)
+      remDr$navigate(url2)
+      ## write massege and send it
+      message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
+      message_textarea$clickElement()
+      message_textarea$sendKeysToActiveElement(list(input$message_content))   #type text 
+      message_textarea$sendKeysToActiveElement(list(key="enter"))  #send text message
+      
+      #show the status and result
+      remote_status <- paste("Send to: ", input$facebook_id, sep="")
+      output$status <- renderText({ 
+        remote_status
+      })
+      remote_status2 <- paste("Message Content: ", input$message_content, sep="")
+      output$status2 <- renderText({ 
+        remote_status2
+      })
+      remote_result <- "Send message success"
+      output$result <- renderText({ 
+        remote_result
+      })
+      Sys.sleep(3)
+    }
+  })
 }
 
 # Create Shiny app ----
 shinyApp(ui, server)
-
