@@ -3,9 +3,10 @@ library(DT)
 library(tidyr)
 library(dplyr)
 library(shinyjs)
+library(plan) # Trim space for check text is.empty()
 library(RSelenium) # R Bindings for Selenium WebDriver
 
-#line91 & line93 input FB username & password
+#line92 & line94 input FB username & password
 
 #load user's data
 load("userlikesFulllist.Rdata")
@@ -108,7 +109,7 @@ server <- function(input, output, session) {
   ##send text button onClick event
   observeEvent(input$sendtext, {
     ## check is.empty(facebook id & message content)
-    if(input$facebook_id == "" || input$message_content ==""){
+    if(trim.whitespace(input$facebook_id) == "" || trim.whitespace(input$message_content) ==""){
       showNotification("Facebook ID and Message content cannot be empty.", type="error")
     }else{
       url2=paste("https://www.facebook.com/messages/t/", input$facebook_id, sep="")   #facebook massenger url(last url is fb user's id)
@@ -138,7 +139,7 @@ server <- function(input, output, session) {
   ##send multi-text button onClick event
   observeEvent(input$sendMulti_text, {
     ## check is.empty(facebook id & message content)
-    if(input$facebook_id == "" || input$message_content ==""){
+    if(trim.whitespace(input$facebook_id) == "" || trim.whitespace(input$message_content) ==""){
       showNotification("Facebook ID and Message content cannot be empty.", type="error")
     }else{
       list.usersId <- as.list(strsplit(input$facebook_id, ",")[[1]])
@@ -172,7 +173,7 @@ server <- function(input, output, session) {
   ##send all-text button onClick event
   observeEvent(input$sendAlltext, {
     ## check is.empty(facebook id & message content)
-    if(input$message_content ==""){
+    if(trim.whitespace(input$message_content) ==""){
       showNotification("Message content cannot be empty.", type="error")
     }else{
       list.AllusersId <- as.list(alluser[1])
