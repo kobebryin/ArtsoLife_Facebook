@@ -5,6 +5,8 @@ library(dplyr)
 library(shinyjs)
 library(RSelenium) # R Bindings for Selenium WebDriver
 
+#line91 & line93 input FB username & password
+
 #load user's data
 load("userlikesFulllist.Rdata")
 alluser=userlikesFulllist[,1:2]
@@ -37,7 +39,9 @@ ui <- fluidPage(
       
       actionButton("sendtext", "Send Text"),
       actionButton("sendMulti_text", "Send Multi-Text"),
-      actionButton("sendAlltext", "Send All")
+      hr(),
+      actionButton("sendAlltext", "Send All"),
+      actionButton("clearTxt", "Clear")
     ),
     
     # Main panel for displaying outputs ----
@@ -66,6 +70,7 @@ server <- function(input, output, session) {
   output$mytable = DT::renderDataTable({
     alluser
   })
+  proxy = dataTableProxy('mytable') #initial DT's variable
   
   ##function of which user's id has selected by user
   selectedRow <- eventReactive(input$mytable_rows_selected,{
@@ -80,12 +85,12 @@ server <- function(input, output, session) {
   ##open browser button onClick event
   observeEvent(input$openbrowser, {
     remDr$open() #open chrome browser
-    url2="https://www.facebook.com/messages/t/kobebryin"   #facebook massenger url(last url is fb user's id)
+    url2="https://www.facebook.com/messages/t/Artso8051"   #facebook massenger url(last url is fb user's id)
     remDr$navigate(url2)
     email_textarea <- remDr$findElement('xpath', '//*[@id="email"]')   #navigate to email textarea
-    email_textarea$sendKeysToElement(list("kobebryin@yahoo.com.tw"))
+    email_textarea$sendKeysToElement(list("FB_ID"))
     password_textarea <- remDr$findElement('xpath', '//*[@id="pass"]')   #navigate to password textarea
-    password_textarea$sendKeysToElement(list("8303195205"))
+    password_textarea$sendKeysToElement(list("FB_PASSWORD"))
     login_btn <- remDr$findElement('xpath', '//*[@id="loginbutton"]')   #navigate to login button
     login_btn$clickElement()
     
@@ -102,34 +107,11 @@ server <- function(input, output, session) {
   
   ##send text button onClick event
   observeEvent(input$sendtext, {
-    url2=paste("https://www.facebook.com/messages/t/", input$facebook_id, sep="")   #facebook massenger url(last url is fb user's id)
-    remDr$navigate(url2)
-    ## write massege and send it
-    message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
-    message_textarea$clickElement()
-    message_textarea$sendKeysToActiveElement(list(input$message_content))   #type text 
-    message_textarea$sendKeysToActiveElement(list(key="enter"))  #send text message
-    
-    #show the status and result
-    remote_status <- paste("Send to: ", input$facebook_id, sep="")
-    output$status <- renderText({ 
-      remote_status
-    })
-    remote_status2 <- paste("Message Content: ", input$message_content, sep="")
-    output$status2 <- renderText({ 
-      remote_status2
-    })
-    remote_result <- "Send message success"
-    output$result <- renderText({ 
-      remote_result
-    })
-  })
-  
-  ##send multi-text button onClick event
-  observeEvent(input$sendMulti_text, {
-    list.usersId <- as.list(strsplit(input$facebook_id, ",")[[1]])
-    for(i in list.usersId){
-      url2=paste("https://www.facebook.com/messages/t/", i, sep="")   #facebook massenger url(last url is fb user's id)
+    ## check is.empty(facebook id & message content)
+    if(input$facebook_id == "" || input$message_content ==""){
+      showNotification("Facebook ID and Message content cannot be empty.", type="error")
+    }else{
+      url2=paste("https://www.facebook.com/messages/t/", input$facebook_id, sep="")   #facebook massenger url(last url is fb user's id)
       remDr$navigate(url2)
       ## write massege and send it
       message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
@@ -150,37 +132,82 @@ server <- function(input, output, session) {
       output$result <- renderText({ 
         remote_result
       })
-      Sys.sleep(3)
+    }
+  })
+  
+  ##send multi-text button onClick event
+  observeEvent(input$sendMulti_text, {
+    ## check is.empty(facebook id & message content)
+    if(input$facebook_id == "" || input$message_content ==""){
+      showNotification("Facebook ID and Message content cannot be empty.", type="error")
+    }else{
+      list.usersId <- as.list(strsplit(input$facebook_id, ",")[[1]])
+      for(i in list.usersId){
+        url2=paste("https://www.facebook.com/messages/t/", i, sep="")   #facebook massenger url(last url is fb user's id)
+        remDr$navigate(url2)
+        ## write massege and send it
+        message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
+        message_textarea$clickElement()
+        message_textarea$sendKeysToActiveElement(list(input$message_content))   #type text 
+        message_textarea$sendKeysToActiveElement(list(key="enter"))  #send text message
+        
+        #show the status and result
+        remote_status <- paste("Send to: ", input$facebook_id, sep="")
+        output$status <- renderText({ 
+          remote_status
+        })
+        remote_status2 <- paste("Message Content: ", input$message_content, sep="")
+        output$status2 <- renderText({ 
+          remote_status2
+        })
+        remote_result <- "Send message success"
+        output$result <- renderText({ 
+          remote_result
+        })
+        Sys.sleep(3)
+      }
     }
   })
   
   ##send all-text button onClick event
   observeEvent(input$sendAlltext, {
-    list.AllusersId <- as.list(alluser[1])
-    for(i in c(1:length(list.AllusersId$id))){
-      url2=paste("https://www.facebook.com/messages/t/", list.AllusersId$id[i], sep="")   #facebook massenger url(last url is fb user's id)
-      remDr$navigate(url2)
-      ## write massege and send it
-      message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
-      message_textarea$clickElement()
-      message_textarea$sendKeysToActiveElement(list(input$message_content))   #type text 
-      message_textarea$sendKeysToActiveElement(list(key="enter"))  #send text message
-      
-      #show the status and result
-      remote_status <- paste("Send to: ", input$facebook_id, sep="")
-      output$status <- renderText({ 
-        remote_status
-      })
-      remote_status2 <- paste("Message Content: ", input$message_content, sep="")
-      output$status2 <- renderText({ 
-        remote_status2
-      })
-      remote_result <- "Send message success"
-      output$result <- renderText({ 
-        remote_result
-      })
-      Sys.sleep(3)
+    ## check is.empty(facebook id & message content)
+    if(input$message_content ==""){
+      showNotification("Message content cannot be empty.", type="error")
+    }else{
+      list.AllusersId <- as.list(alluser[1])
+      for(i in c(1:length(list.AllusersId$id))){
+        url2=paste("https://www.facebook.com/messages/t/", list.AllusersId$id[i], sep="")   #facebook massenger url(last url is fb user's id)
+        remDr$navigate(url2)
+        ## write massege and send it
+        message_textarea <- remDr$findElement('class name', '_5rpb') #navigate to textarea element
+        message_textarea$clickElement()
+        message_textarea$sendKeysToActiveElement(list(input$message_content))   #type text 
+        message_textarea$sendKeysToActiveElement(list(key="enter"))  #send text message
+        
+        #show the status and result
+        remote_status <- paste("Send to: ", input$facebook_id, sep="")
+        output$status <- renderText({ 
+          remote_status
+        })
+        remote_status2 <- paste("Message Content: ", input$message_content, sep="")
+        output$status2 <- renderText({ 
+          remote_status2
+        })
+        remote_result <- "Send message success"
+        output$result <- renderText({ 
+          remote_result
+        })
+        Sys.sleep(3)
+      }
     }
+  })
+  
+  ##send all-text button onClick event
+  observeEvent(input$clearTxt, {
+    updateTextInput(session, "facebook_id", value = "") #change textinput's value
+    updateTextInput(session, "message_content", value = "") #change textinput's value
+    proxy %>% selectRows(NULL)  ##reset Datatable's selected
   })
 }
 
